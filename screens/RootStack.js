@@ -4,8 +4,9 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import MainTab from './MainTab';
 import SignInScreen from './SignInScreen';
 import TranslationSettingsScreen from './TranslationSettingsScreen';
-import MinutesScreen from './MinutesScreen';
 import ChattingScreen from './ChattingScreen';
+import MainTabScreen from './MainTabScreen';
+import OpenMinute from './OpenMinute';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,24 +33,34 @@ const RootStack = () => {
         </>
       )}
       <Stack.Screen
+        name="MainTabScreen"
+        component={MainTabScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
         name="SettingOption"
         component={TranslationSettingsScreen}
         options={{
           title: '옵션',
+          headerTitleAlign: 'center',
         }}
         style={{flex: 1}}
       />
       <Stack.Screen
-        name="Minutes"
-        component={MinutesScreen}
+        name="Chatting"
+        component={ChattingScreen}
         options={{
-          title: '회의록',
+          title: '번역',
+          headerTitleAlign: 'center',
         }}
       />
       <Stack.Screen
-        name="Chatting"
-        component={ChattingScreen}
-        options={{title: '번역'}}
+        name="openFile"
+        component={OpenMinute}
+        options={{
+          title: '문서',
+          headerTitleAlign: 'center',
+        }}
       />
     </Stack.Navigator>
   );

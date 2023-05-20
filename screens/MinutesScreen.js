@@ -12,6 +12,7 @@ import MinuteList from '../components/MinuteList';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Dialog from 'react-native-dialog';
 import FileContext from '../contexts/FileContext';
+import SearchBar from '../components/SearchBar';
 
 const getDate = today => {
   const year = today.getFullYear();
@@ -83,10 +84,14 @@ const MinutesScreen = ({navigation}) => {
 
   useEffect(() => {
     navigation.setOptions({
+      headerStyle: {
+        backgroundColor: '#1976D2',
+      },
+      headerTintColor: '#ffff',
       headerRight: () => (
         <View>
           <TouchableOpacity onPress={showDialog} style={styles.addButton}>
-            <Icon name="add" size={28} color="black" />
+            <Icon name="add" size={28} color="white" />
           </TouchableOpacity>
           <View>
             <Dialog.Container visible={visible}>
@@ -109,7 +114,9 @@ const MinutesScreen = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      {/**backgroundColor="#FFFFFF" barStyle="dark-content"  */}
+      <StatusBar backgroundColor="#1976D2" barStyle="light-content" />
+      <SearchBar />
       {files.length === 0 ? (
         <Empty />
       ) : (

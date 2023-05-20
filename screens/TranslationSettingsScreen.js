@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useContext, useEffect} from 'react';
 import {
   StatusBar,
   StyleSheet,
@@ -8,23 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import {Dropdown} from 'react-native-element-dropdown';
-
-const Language = [
-  {label: '한국어(Korean)', value: '1'},
-  {label: '영어(English)', value: '2'},
-  {label: '중국어(Chinese)', value: '3'},
-  {label: '일본어(Japanese)', value: '4'},
-  {label: '독일어(German)', value: '5'},
-  {label: '몽골어(Mongolian)', value: '6'},
-  {label: '베트남어(Vietnamese)', value: '7'},
-  {label: '프랑스어(French)', value: '8'},
-];
-
-const Category = [
-  {label: '항만', value: '1'},
-  {label: '회계', value: '2'},
-  {label: '소프트웨어 및 ICT', value: '3'},
-];
+import SettingContext from '../contexts/SettingContext';
 
 const TranslationSettingsScreen = ({navigation}) => {
   const [languageData, setLanguageData] = useState(null);
@@ -33,20 +17,32 @@ const TranslationSettingsScreen = ({navigation}) => {
   const [categoryName, setCategoryName] = useState('');
   const [isFocus, setIsFocus] = useState(false);
 
+  const {languages} = useContext(SettingContext);
+  const {categorys} = useContext(SettingContext);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerStyle: {
+        backgroundColor: '#1976D2',
+      },
+      headerTintColor: '#ffff',
+    });
+  });
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      <StatusBar backgroundColor="#1976D2" barStyle="light-content" />
       <View style={styles.logo}>
         <Text style={styles.logoText}>옵션을 선택해주세요.</Text>
       </View>
       <View style={{backgroundColor: '#fff', padding: 20, borderRadius: 15}}>
         <Dropdown
-          style={[styles.dropdown, isFocus && {borderColor: 'blue'}]}
+          style={styles.dropdown}
           placeholderStyle={styles.placeholderStyle}
           selectedTextStyle={styles.selectedTextStyle}
           inputSearchStyle={styles.inputSearchStyle}
           iconStyle={styles.iconStyle}
-          data={Language}
+          data={languages}
           search
           maxHeight={300}
           labelField="label"
@@ -63,12 +59,12 @@ const TranslationSettingsScreen = ({navigation}) => {
           }}
         />
         <Dropdown
-          style={[styles.dropdown, isFocus && {borderColor: 'blue'}]}
+          style={styles.dropdown}
           placeholderStyle={styles.placeholderStyle}
           selectedTextStyle={styles.selectedTextStyle}
           inputSearchStyle={styles.inputSearchStyle}
           iconStyle={styles.iconStyle}
-          data={Category}
+          data={categorys}
           search
           maxHeight={300}
           labelField="label"
@@ -105,8 +101,8 @@ const TranslationSettingsScreen = ({navigation}) => {
                           categoryName: categoryName,
                           languageNumber: languageData,
                           categoryNumber: categoryData,
-                          Language: Language,
-                          Category: Category,
+                          Language: languages,
+                          Category: categorys,
                         });
 
                         setLanguageData(null);
@@ -143,7 +139,7 @@ export default TranslationSettingsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1976D2',
+    backgroundColor: 'white', //#1976D2
     padding: 16,
     justifyContent: 'center',
     alignContent: 'center',
@@ -154,12 +150,12 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 20,
-    color: 'white',
+    color: '#1976D2', //white
   },
   dropdown: {
     height: 50,
     borderColor: 'gray',
-    borderWidth: 0.5,
+    borderWidth: 0.7, //0.5
     borderRadius: 8,
     paddingHorizontal: 8,
     marginBottom: 10,

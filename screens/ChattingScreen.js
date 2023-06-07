@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useContext} from 'react';
+import React, {useEffect, useState, useContext, useRef} from 'react';
 import {
   Text,
   View,
@@ -8,23 +8,30 @@ import {
   Alert,
   TextInput,
   Keyboard,
+  PermissionsAndroid,
+  SafeAreaView,
 } from 'react-native';
+import GoogleCloudSpeechToText, {
+  SpeechRecognizeEvent,
+  VoiceStartEvent,
+  SpeechErrorEvent,
+  VoiceEvent,
+  SpeechStartEvent,
+} from 'react-native-google-cloud-speech-to-text';
 import {Dropdown} from 'react-native-element-dropdown';
 import Dialog from 'react-native-dialog';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AddChattings from '../components/AddChatting';
-import Voice from '@react-native-voice/voice';
 import FileContext from '../contexts/FileContext';
+import STTContext from '../contexts/STTContext';
+import axios from 'axios';
+
+const GOOGLE_TRANSLATE_API_KEY = 'AIzaSyAyXF5gnFFgSuDXlOHLUzoq3SLfFuL_HDQ';
 
 const ChattingScreen = ({route, navigation}) => {
-  const [result, setResult] = useState('');
-  const [error, setError] = useState('');
+  const [transcript, setResult] = useState('');
+  const [inputResult, setInputResults] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-
-  Voice.onSpeechStart = () => setIsRecording(true);
-  Voice.onSpeechEnd = () => setIsRecording(false);
-  Voice.onSpeechError = err => setError(err.error);
-  Voice.onSpeechResults = result => setResult(result.value[0]);
 
   const [language, setLanguage] = useState(route.params.languageName);
   const [languageCode, setLanguageCode] = useState(route.params.languageCode);
@@ -42,9 +49,160 @@ const ChattingScreen = ({route, navigation}) => {
 
   const [fileTitle, setFileTitle] = useState('');
   const [fileDepartment, setFileDepartment] = useState('');
-  const [isInput, setIsInput] = useState(false);
 
-  const [Messages, setMessages] = useState([{id: 1, text: '안녕하세요'}]);
+  const {messages, AddMessage} = useContext(STTContext);
+
+  const nextId = useRef(2);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      if (isRecording) {
+        stopRecognizing();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, isRecording]);
+
+  useEffect(() => {
+    GoogleCloudSpeechToText.setApiKey(
+      'AIzaSyBxRxXtGyuJIlUz5uKYRMhNBb0Z4G5VxAE',
+    );
+    GoogleCloudSpeechToText.onVoice(onVoice);
+    GoogleCloudSpeechToText.onVoiceStart(onVoiceStart);
+    GoogleCloudSpeechToText.onVoiceEnd(onVoiceEnd);
+    GoogleCloudSpeechToText.onSpeechError(onSpeechError);
+    GoogleCloudSpeechToText.onSpeechRecognized(onSpeechRecognized);
+    GoogleCloudSpeechToText.onSpeechRecognizing(onSpeechRecognizing);
+
+    return () => {
+      GoogleCloudSpeechToText.removeListeners();
+    };
+  }, [onSpeechRecognized]);
+
+  useEffect(() => {
+    requestMicrophonePermission();
+  }, []);
+
+  const onSpeechError = _error => {
+    console.log('onSpeechError: ', _error);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const onSpeechRecognized = async result => {
+    console.log('onSpeechRecognized: ', result);
+
+    const direction = await detectLanguage(result.transcript);
+    const di = direction === 'ko' ? 'right' : 'left';
+    const sourceLanguage = di === 'ko' ? 'ko' : languageCode.substr(0, 2);
+    const targetLanguage = di === 'ko' ? languageCode.substr(0, 2) : 'ko';
+
+    const translateText = await translate(
+      result.transcript,
+      sourceLanguage,
+      targetLanguage,
+    );
+
+    if (result.transcript !== '') {
+      AddMessage({
+        id: nextId.current,
+        text: result.transcript,
+        direction: di,
+        languageCode: direction === 'ko' ? languageCode : 'ko-KR',
+        translateText: translateText,
+      });
+      nextId.current += 1;
+    }
+  };
+
+  const translate = async (text, sourceLanguage, targetLanguage) => {
+    try {
+      const translateUrl = `http://3.39.132.36:8080/translate`;
+      const response = await axios.post(translateUrl, {
+        Text: text,
+        TerminologyNames: categoryCode,
+        SourceLanguageCode: sourceLanguage,
+        TargetLanguageCode: targetLanguage,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error translate:', error);
+    }
+  };
+
+  const detectLanguage = async text => {
+    const textToTranslate = text; // 감지할 언어가 포함된 텍스트
+    const url = `https://translation.googleapis.com/language/translate/v2/detect?key=${GOOGLE_TRANSLATE_API_KEY}`;
+
+    try {
+      const response = await axios.post(url, {
+        q: textToTranslate,
+      });
+
+      const detectedLanguage = response.data.data.detections[0][0].language;
+      //const direction = detectedLanguage === 'ko' ? 'right' : 'left';
+
+      return detectedLanguage;
+    } catch (error) {
+      console.error('Error detecting language:', error);
+    }
+  };
+
+  const onSpeechRecognizing = result => {
+    console.log('onSpeechRecognizing: ', result);
+    setResult(result.transcript);
+  };
+
+  const onVoiceStart = _event => {
+    console.log('onVoiceStart', _event);
+  };
+
+  const onVoice = _event => {
+    console.log('onVoice', _event);
+  };
+
+  const onVoiceEnd = () => {
+    console.log('onVoiceEnd: ');
+  };
+
+  const stopRecognizing = async () => {
+    setIsRecording(false);
+    await GoogleCloudSpeechToText.stop();
+  };
+
+  const startRecognizing = async () => {
+    setIsRecording(true);
+    const result = await GoogleCloudSpeechToText.start({
+      speechToFile: false,
+      languageCode: languageCode,
+    });
+
+    const result2 = await GoogleCloudSpeechToText.start({
+      speechToFile: false,
+      languageCode: 'ko-KR',
+    });
+
+    console.log('startRecognizing', result);
+    console.log('startRecognizing2:', result2);
+  };
+
+  const requestMicrophonePermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Microphone permission has been granted.');
+      } else {
+        console.log('Microphone permission has been denied.');
+      }
+    } catch (error) {
+      console.log(
+        'Error occurred while requesting microphone permission.',
+        error,
+      );
+    }
+  };
 
   useEffect(() => {
     navigation.setOptions({
@@ -80,7 +238,6 @@ const ChattingScreen = ({route, navigation}) => {
   };
 
   const {onCreate} = useContext(FileContext);
-  const {files} = useContext(FileContext);
 
   const showDialog = () => {
     setVisible(true);
@@ -107,12 +264,11 @@ const ChattingScreen = ({route, navigation}) => {
   const handleSaveOk = () => {
     setFileTitle('');
     setFileDepartment('');
-    console.log('파일 저장 완료!');
     // 서버에 문서 저장하는 코드 추가
     setSaveVisible(false);
 
     let content = '';
-    Messages.map(id => {
+    messages.map(id => {
       content += id.text;
       content += '\n';
     });
@@ -130,54 +286,44 @@ const ChattingScreen = ({route, navigation}) => {
     );
 
     navigation.navigate('MainTabScreen', {
-      content: Messages,
+      content: messages,
       title: fileTitle,
       department: fileDepartment,
     });
   };
 
-  const startRecording = async () => {
-    try {
-      setResult('');
-      setIsInput(false);
-      await Voice.start('en-US');
-    } catch (err) {
-      setError(err);
-    }
-  };
+  const sendMessage = async () => {
+    const direction = await detectLanguage(inputResult);
 
-  const stopRecording = async () => {
-    try {
-      await Voice.stop();
-    } catch (error) {
-      setError(error);
-    }
-  };
+    const sourceLanguage =
+      direction === 'ko' ? 'ko' : languageCode.substr(0, 2);
+    const targetLanguage =
+      direction === 'ko' ? languageCode.substr(0, 2) : 'ko';
 
-  const sendMessage = () => {
-    const nextId =
-      Messages.length > 0
-        ? Math.max(...Messages.map(Message => Message.id)) + 1
-        : 1;
-    const message = {
-      id: nextId,
-      text: result,
-    };
-    setMessages(Messages.concat(message));
-    console.log(Messages);
-    setResult('');
+    const translateText = await translate(
+      inputResult,
+      sourceLanguage,
+      targetLanguage,
+    );
+    console.log(translateText);
+
+    if (inputResult !== '') {
+      AddMessage({
+        id: nextId.current,
+        text: inputResult,
+        direction: 'right',
+        languageCode: direction === 'ko' ? languageCode : 'ko-KR',
+        translateText: translateText,
+      });
+      nextId.current += 1;
+    }
+
+    setInputResults('');
     Keyboard.dismiss();
-    setIsRecording(true);
-    startRecording();
   };
-
-  if (!isRecording && !isInput && result.length > 0) {
-    console.log(isRecording);
-    sendMessage();
-  }
 
   return (
-    <View style={styles.Container}>
+    <SafeAreaView style={styles.Container}>
       <StatusBar backgroundColor="#1976D2" barStyle="light-content" />
       <View>
         <Dialog.Container
@@ -224,7 +370,9 @@ const ChattingScreen = ({route, navigation}) => {
             onBlur={() => setIsFocus(false)}
             onChange={item => {
               setSelectedCategory(item.label);
-              setSelectedCategoryCode(item.value);
+              setSelectedCategoryCode(
+                item.value === 'default' ? '' : item.value,
+              );
               setIsFocus(false);
             }}
           />
@@ -252,41 +400,38 @@ const ChattingScreen = ({route, navigation}) => {
         </Dialog.Container>
       </View>
       <View style={styles.chatting}>
-        <AddChattings Messages={Messages} direction="Right" />
+        <AddChattings
+          stopRecognizing={stopRecognizing}
+          startRecognizing={startRecognizing}
+          isRecording={isRecording}
+        />
       </View>
-      <Text style={{fontSize: 30}}>{result}</Text>
-      <Text style={{color: 'red'}}>
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
-      </Text>
-      <Text>
-        {category}, {languageCode}
-      </Text>
+      {/* <Text style={{fontSize: 30}}>{transcript}</Text> */}
       <View style={styles.block}>
         <TextInput
           placeholder="입력"
           style={styles.input}
-          value={result}
+          value={inputResult}
           onChangeText={text => {
-            setResult(text);
-            setIsInput(true);
+            setInputResults(text);
           }}
           onSubmitEditing={sendMessage}
           returnKeyType="done"
         />
         <TouchableOpacity
-          onPress={isRecording ? stopRecording : startRecording}>
+          onPress={isRecording ? stopRecognizing : startRecognizing}>
           <Icon
             name="mic"
             size={27}
             color="black"
-            style={[{marginRight: 10}]}
+            style={[{marginRight: 20}]}
           />
         </TouchableOpacity>
         <TouchableOpacity style={styles.Addbutton} onPress={sendMessage}>
           <Icon name="send" size={27} color="#1976D2" />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -301,6 +446,7 @@ const styles = StyleSheet.create({
   headerButton: {
     color: 'white',
     marginLeft: 5,
+    marginRight: 2,
   },
   title: {
     marginTop: 10,

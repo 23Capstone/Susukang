@@ -6,7 +6,7 @@ const SettingContext = createContext();
 export function SettingContextProvider({children}) {
   const languages = [
     {label: '독일 독일어', value: 'de-DE'},
-    {label: '미국 영어', value: 'en-US6'},
+    {label: '미국 영어', value: 'en-US'},
     {label: '미국 스페인어', value: 'es-US'},
     {label: '브라질 포르투갈어', value: 'pt-BR'},
     {label: '영국 영어', value: 'en-GB'},
@@ -22,9 +22,10 @@ export function SettingContextProvider({children}) {
   ];
 
   const categorys = [
-    {label: '항만', value: '1'},
-    {label: '회계', value: '2'},
-    {label: '소프트웨어 및 ICT', value: '3'},
+    {label: '기본', value: 'default'},
+    {label: '항만', value: 'PORT'},
+    {label: '회계', value: 'ECONOMY'},
+    {label: '소프트웨어 및 ICT', value: 'SW'},
   ];
 
   return (

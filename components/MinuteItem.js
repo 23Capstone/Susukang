@@ -19,22 +19,23 @@ const MinuteItem = ({getDate, file}) => {
 
   const {onModify, onRemove} = useContext(FileContext);
   const {onCreate} = useContext(KakaoContext);
-  const {summary} = useContext(KakaoContext);
 
   const handleSummarize = async () => {
-    console.log(content);
-    await onCreate({
-      prompt: content + '\n이 내용 요약:',
-    });
+    try {
+      const createdSummary = await onCreate({
+        prompt: content + '\n한 줄 요약:',
+      });
 
-    const response = summary.text;
-    console.log(response);
+      console.log(createdSummary);
 
-    navigation.navigate('Summary', {
-      title: title,
-      department: department,
-      summary: response,
-    });
+      navigation.navigate('Summary', {
+        title: title,
+        department: department,
+        summary: createdSummary,
+      });
+    } catch (error) {
+      console.error('Error: ', error);
+    }
   };
 
   const showDialog = () => {
@@ -114,8 +115,6 @@ const MinuteItem = ({getDate, file}) => {
     setFilePath(file.filePath);
     const path = JSON.stringify(file.filePath);
     Alert.alert('다운 받은 파일 경로', `${path}`);
-    //Alert.alert('파일 다운', '다운 되었습니다.');
-    //}
   };
 
   return (
